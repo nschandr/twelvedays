@@ -1,5 +1,6 @@
 ---
-title: "Lab: The 12 Days of Christmas"
+title: "Lab 8: The 12 Days of Christmas"
+author: "Nithya Chandran, Athena Kwok, Catherine Phan, Christina Dang, Ye Chan Yoo"
 output:
   prettydoc::html_pretty:
     theme: tactile
@@ -15,14 +16,11 @@ library(dplyr)
 library(glue)
 library(stringr)
 library(purrr)
+library(english)
 ```
 
 
 ### A Test Dataset
-
-Run the code below to load up a dataset called `xmas` that contains the crucial 
-information about the gifts in the song. We will use this dataset to test out
-our functions as we work on them.
 
 ```{r}
 xmas <- read.csv("https://www.dropbox.com/s/e584pryn8evm1gz/xmas.csv?dl=1")
@@ -47,32 +45,17 @@ the function takes a gift and returns the appropriate plural.
 pluralize_gift <- function(gift){
 
 gift <- gift %>%
-  str_replace()
+  paste0("s") %>%
+  str_replace("ys$", "ies") %>%
+  str_replace("ooses$", "eese")
 
 return(gift)
 
 }
 ```
 
-*Hint 1:* Note that the gifts on days six and nine have unusual pluralizations.
-You may assume that in other datasets, there will be no special cases besides
-these types.
+- The [`paste0()` function](https://stackoverflow.com/questions/28028110/insert-character-at-end-of-string-in-r-except-for-the-last-element) works similar to `paste()` but the default `sep` is an empty string (`""`) in `paste0()` and the default `sep` is a single space (`" "`) in `paste()`.
 
-*Hint 2:*  The following small example may be useful to you:
-
-```{r, eval = TRUE}
-my_names <- c("Kimberly", "Trini", "Jason", "Billy", "Zach", "Tommy")
-
-my_names %>% 
-  str_replace("y$", "ies")
-```
-
-
-**Important:**  You should **absolutely not** "hard-code" anything into this 
-function; this function should work in general, not just for the items in the
-12 Days of Christmas.  For example, the word "rings" should not appear anywhere
-in the function.  I should be able to give it any gift and any day, and get back
-the plural of that gift.
 
 
 ### Test Your Function
@@ -95,48 +78,33 @@ purrr::map_chr(xmas$Gift.Item, pluralize_gift)
 
 ## Step Two: Creating sentences
 
-Write a function called `make_phrase` that takes as input the necessary information, 
-and returns a phrase.  For example, 
-
-```{r}
-make_phrase(num = 10, 
-            num_word = "ten", 
-            item = "lords", 
-            verb = "a-leaping", 
-            adjective = "", 
-            location = "")
-```
-
-should return
-
-```
-"ten lords a-leaping"
-```
 
 ```{r}
 make_phrase <- function(num, num_word, item, verb, adjective, location) {
   
   ## Step 1: Replace NAs with blank strings
   verb <- str_replace_na(verb, "")
+  adjective <- str_replace_na(adjective, "")
+  location <- str_replace_na(location, "")
   
   ## Step 2: Pluralize the gift if needed
   ## Items with numbers larger than 1 should be pluralized
   ## Single items starting with a vowel should have "an" in front
   ## All other single items should have "a" in front
   
-  vowel_start <- str_sub(item, 1, 1) %>% str_detect(___)
+  vowel_start <- str_sub(item, 1, 1) %>% str_detect("[aeiou]")
   
-  if (___) {
+  if (num > 1) {
     
     item <- pluralize_gift(item)
     
   } else if (vowel_start) {
-  
-      
+    
+    num_word <- "an "
     
   } else {
     
-    
+    num_word <- "a "
     
   }
   
@@ -160,11 +128,11 @@ to create numbered days and then use those in your `pmap_chr()`!
 ```{r}
 xmas <- xmas %>%
   mutate(
-    Full.Phrase = pmap_chr(list(___), 
+    days_in_words = as.character(english::english(Day)),
+    Full.Phrase = pmap_chr(list(Day, days_in_words, Gift.Item, Verb, Adjective, Location), 
                            make_phrase)
   )
 ```
-
 
 ---
 
@@ -186,24 +154,28 @@ Write a function called `sing_line` that takes as input:
 # Arguments -- phrase_col -- The variable name for the column in the dataset that contains the gift phrases
 # Return -- A string singing the line of the song with all gifts for the given day.
 
-sing_day <- function(dataset, line, phrase_col){
+sing_line <- function(dataset, line, phrase_col){
   
   # Step 1: Setup the intro line
   
-  num_word <- ____
+  num_word <- english::ordinal(line)
   
-  intro <- glue::glue("On the {num_word} day of Christmas")
+  intro <- glue::glue("On the {num_word} day of Christmas, my true love sent to me,")
   
   # Step 2: Sing the gift phrases
 
-    phrases <- dataset %>% 
-      pull({{phrase_col}})
+  phrases <- dataset %>% 
+    pull({{phrase_col}})
+  
+  if(line > 1){
+    phrases[2] <- paste0(phrases[2], " and")
+  }
 
-  ????
+  gift_phrases <- str_c(phrases[line:1], collapse = "\n")
     
   ## put it together
     
-  ????
+  glue::glue("{intro} \n{gift_phrases}")
 
 
 }
@@ -211,12 +183,14 @@ sing_day <- function(dataset, line, phrase_col){
 
 ```
 
+- [ordinal() function from english package](https://rdrr.io/cran/english/man/ordinal.html) The `ordinal()` function takes a number and return the ordinal number. For example, `ordinal(2)` will return `second`.
+
 For example,
 
 
 ```{r}
 sing_line(xmas, 
-          num = 2, 
+          line = 2, 
           phrase_col = Full.Phrase)
 
 ```
@@ -238,7 +212,6 @@ column names as arguments to a function.  Don't delete that line of code!
 
 Run the following code to test out your functions! The ouput should be the 
 lyrics for the entire 12 Days of Christmas song. 
-
 ```{r}
 xmas2 <- xmas %>%
   mutate(
@@ -257,7 +230,6 @@ map_chr(1:12, ~sing_line(xmas2, .x, Full.Phrase)) %>%
   cat()
 
 ```
-
 
 ## Step Five: Show Me Your Work! 
 
@@ -279,4 +251,3 @@ Submit the link to your GitHub repository in the Lab 8 assignment portal.
 __If you downloaded the compressed folder and did not use GitHub:__
 
 Submit **both** your RMarkdown file and knitted HTML file
-
